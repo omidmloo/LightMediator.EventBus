@@ -1,143 +1,56 @@
-# LightMediator
+ 
+# LightMediator.EventBus
 
-**LightMediator** is a lightweight library designed to simplify decoupled communication in distributed Windows services. It works with multiple notification types and supports services across different namespaces.
+[![NuGet](https://img.shields.io/nuget/v/LightMediator.EventBus.svg)](https://www.nuget.org/packages/LightMediator.EventBus)
+[![License](https://img.shields.io/github/license/omidmloo/LightMediator.EventBus)](LICENSE)
 
-## Features
-- Lightweight and efficient.
-- Supports publish-subscribe, request-response, and one-way notifications.
-- Simplifies working with decoupled services in distributed systems.
-- Easy to integrate with existing applications.
-- Supports commands and command handlers for request-response communication.
+LightMediator.EventBus is an extension of the [LightMediator](https://github.com/omidmloo/LightMediator) library that provides support for EventBus-style communication between services, applications, or distributed components in a decoupled and efficient way.
 
-## Installation
-You can install the LightMediator NuGet package using the following command:
+---
+
+## ✨ Features
+
+- 🔁 **Publish-Subscribe pattern** built on top of LightMediator
+- 🧩 **Extensible architecture** – plug into different transport layers (e.g., RabbitMQ, Azure Service Bus, SignalR, etc.)
+- 🛠️ **Seamless integration** with existing LightMediator pipelines
+- 📦 **Lightweight and performant** – zero external dependencies unless needed by transport
+- ✅ **Unit-test friendly** design
+
+---
+
+## 📦 Installation
+
+Install via NuGet:
+
 ```bash
-dotnet add package LightMediator
-```
+dotnet add package LightMediator.EventBus
+````
 
-## Usage
+---
 
-### Publish Notifications
-You can publish notifications to subscribers using the LightMediator instance:
+## 🚀 Getting Started
+
 ```csharp
-var mediator = new LightMediator();
-mediator.Publish(new Notification("ServiceStarted"));
-```
-
-### Handle Notifications
-To handle notifications, create a class that implements the `INotificationHandler<T>` interface. Ensure that `Notification` implements the `INotification` interface:
-```csharp
-public class Notification : INotification
+public class OrderCreatedEvent : IEvent
 {
-    public string Message { get; }
-
-    public Notification(string message)
-    {
-        Message = message;
-    }
+    public Guid OrderId { get; init; }
 }
 
-public class NotificationHandler : INotificationHandler<Notification>
+public class OrderCreatedHandler : IEventHandler<OrderCreatedEvent>
 {
-    public Task Handle(Notification notification, CancellationToken cancellationToken)
+    public Task HandleAsync(OrderCreatedEvent @event, CancellationToken cancellationToken)
     {
-        Console.WriteLine($"Received: {notification.Message}");
+        Console.WriteLine($"Order created: {@event.OrderId}");
         return Task.CompletedTask;
     }
 }
 ```
 
-### Use Commands and Command Handlers
-LightMediator also supports **commands** and **command handlers** to facilitate request-response communication. 
+Then register the EventBus in your DI container:
 
-#### Define a Command
-A command is a class that implements the `IRequest<TResponse>` interface, where `TResponse` is the type of the response the command expects.
+```csharp 
 
-```csharp
-public class TestCommand : IRequest<TestCommandResponse>
-{
-    public string Message { get; set; }
-}
-```
-
-#### Define a Command Handler
-A command handler is a class that implements the `IRequestHandler<TRequest, TResponse>` interface. The handler contains the logic for processing the command.
-
-```csharp
-public class TestCommandHandler : RequestHandler<TestCommand, TestCommandResponse>
-{
-    private readonly ILogger<TestCommandResponseHandler> _logger;
-    public TestCommandHandler(ILogger<TestCommandResponseHandler> logger)
-    {
-      _logger = logger;
-    }
-    public override async Task<TestCommandResponse> Handle(TestCommand request, CancellationToken cancellationToken)
-    {
-        // Handle the command and return a response
-        return new TestCommandResponse
-        {
-            ResponseMessage = $"Received command with message: {request.Message}"
-        };
-    }
-}
-```
-
-#### Define a Command Response
-The response is a class that contains the result of processing the command.
-
-```csharp
-public class TestCommandResponse
-{
-    public string ResponseMessage { get; set; }
-}
-```
-
-#### Sending a Command
-You can send a command and get a response using the `Send` method from LightMediator.
-
-```csharp
- public class Worker : BackgroundService
- {
-     private readonly ILogger<Worker> _logger;
-     private readonly IMediator _mediator;
-     public Worker(ILogger<Worker> logger,IMediator mediator)
-     {
-         _mediator = mediator;
-         _logger = logger;
-     }
-
-     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-     {
-         while (!stoppingToken.IsCancellationRequested)
-         {
-             await _mediator.Send(new TestCommand()
-             {
-                 Title = "Test",
-                 Description = "Test",
-             });
-
-             var res = await _mediator.Send<bool>(new TestCommandResponse()
-             {
-                 Title = "Test",
-                 Description = "Test",
-             });
-
-             if (_logger.IsEnabled(LogLevel.Information))
-             {
-                 _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-             }
-             await Task.Delay(1000, stoppingToken);
-         }
-     }
- }
-```
-
-### Registering Commands , Notifications and Handlers
-You can register handlers with the dependency injection container in your application startup:
-
-```csharp
-// Add Mediator to the Dependency Injection container
-builder.Services.AddLightMediator(options =>
+services.AddLightMediator(options =>   // from LightMediator
 {
     // Configure options for the mediator
     options.IgnoreNamespaceInAssemblies = true;
@@ -145,16 +58,51 @@ builder.Services.AddLightMediator(options =>
     options.RegisterNotificationsByAssembly = true;
     options.RegisterRequestsByAssembly = true;
 
-    //Specify the assemblies to scan for notification and request
+    // specify the assemblies to scan for notifications
     options.Assemblies = new[]
     {
         Assembly.GetExecutingAssembly(),
-        ServiceAExtensions.GetServiceAssembly(),
-        ServiceBExtensions.GetServiceAssembly(),
-        ServiceCExtensions.GetServiceAssembly()
+        Lib1.GetServiceAssembly(),
+        Lib2.GetServiceAssembly(), 
+        Service1.GetServiceAssembly()
     };
-});
+    options.AddLightMediatorEventBus(services);   // from this package
+},
 ```
 
-## License
-This project is licensed under the MIT License. See the LICENSE file for details.
+Publish an event:
+Use PublishEvent extension method for light mediator to publish cross domain events
+```csharp
+await lightMediator.PublishEvent(new OrderCreatedEvent { OrderId = Guid.NewGuid() });
+```
+
+---
+
+## 🧱 Architecture
+
+This library follows a **simple EventBus pattern** and leverages the core pipeline and handler resolution features of [LightMediator](https://github.com/omidmloo/LightMediator). It abstracts away transport-specific logic so developers can focus on events and handlers.
+
+---
+
+## 📄 Dependencies
+
+This package depends on:
+
+* [`LightMediator`](https://github.com/omidmloo/LightMediator): A minimalistic and performant in-process mediator pattern library for .NET.
+
+
+## ✅ Contributing
+
+Contributions are welcome! Please feel free to open issues, submit pull requests, or suggest enhancements.
+
+---
+
+## 📝 License
+
+This project is licensed under the [MIT License](LICENSE).
+
+---
+
+## 💬 Contact
+
+For support or questions, feel free to reach out via GitHub Issues or contact [@omidmloo](https://github.com/omidmloo).
