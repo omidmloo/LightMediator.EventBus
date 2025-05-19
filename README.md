@@ -103,6 +103,14 @@ This project is licensed under the [MIT License](LICENSE).
 
 ---
 
-## 💬 Contact
+## 💬 Related Projects
+ 
+* [LightMediator](https://github.com/omidmloo/LightMediator)
+* [LightMediator.EventBus.SignalR](https://github.com/omidmloo/LightMediator.EventBus.SignalR) 
+* [LightMediator.EventBus.RabbitMQ](https://github.com/omidmloo/LightMediator.EventBus.RabbitMQ) 
 
-For support or questions, feel free to reach out via GitHub Issues or contact [@omidmloo](https://github.com/omidmloo).
+---
+
+> Created with ❤️ by [@omidmloo](https://github.com/omidmloo) 
+
+
